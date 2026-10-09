@@ -1,24 +1,15 @@
-const { cursos } = require("../models/cursoModel");
+import { getAllCursos, insertCurso } from "../models/cursoModel.js";
 
-const getCursos = () => {
-  return cursos;
+const getCursos = async () => {
+  return await getAllCursos();
 };
 
-const createCurso = (data) => {
+const createCurso = async (data) => {
   const { nombre, docente, cupos } = data;
-  const curso = {
-    id: cursos.length
-      ? Math.max(...cursos.map(c => c.id)) + 1
-      : 1,
-    nombre,
-    docente,
-    cupos: Number(cupos)
-  };
-  cursos.push(curso);
-  return curso;
+  return await insertCurso(nombre, docente, cupos);
 };
 
-module.exports = {
+export {
   getCursos,
   createCurso
 };

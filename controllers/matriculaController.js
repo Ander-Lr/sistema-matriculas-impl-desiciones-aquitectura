@@ -1,20 +1,20 @@
-const matriculaService = require("../services/matriculaService");
+import * as matriculaService from "../services/matriculaService.js";
 
-const getMatriculas = (req, res) => {
-  const resultado = matriculaService.getMatriculas();
+const getMatriculas = async (req, res) => {
+  const resultado = await matriculaService.getMatriculas();
   res.json(resultado);
 };
 
-const createMatricula = (req, res) => {
+const createMatricula = async (req, res) => {
   try {
-    matriculaService.createMatricula(req.body);
+    await matriculaService.createMatricula(req.body);
     res.status(201).json({ mensaje: "Matrícula registrada correctamente." });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 };
 
-module.exports = {
+export { 
   getMatriculas,
   createMatricula
-};
+ };

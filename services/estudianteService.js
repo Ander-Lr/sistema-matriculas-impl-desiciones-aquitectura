@@ -1,24 +1,15 @@
-const { estudiantes } = require("../models/estudianteModel");
+import { getAllEstudiantes, insertEstudiante } from "../models/estudianteModel.js";
 
-const getEstudiantes = () => {
-  return estudiantes;
+const getEstudiantes = async () => {
+  return await getAllEstudiantes();
 };
 
-const createEstudiante = (data) => {
+const createEstudiante = async (data) => {
   const { nombre, carrera, semestre } = data;
-  const estudiante = {
-    id: estudiantes.length
-      ? Math.max(...estudiantes.map(e => e.id)) + 1
-      : 1,
-    nombre,
-    carrera,
-    semestre: Number(semestre)
-  };
-  estudiantes.push(estudiante);
-  return estudiante;
+  return await insertEstudiante(nombre, carrera, semestre);
 };
 
-module.exports = {
+export {
   getEstudiantes,
   createEstudiante
 };

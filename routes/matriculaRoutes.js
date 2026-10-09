@@ -1,8 +1,8 @@
-const express = require("express");
+import express from "express";
 const router = express.Router();
-const matriculaController = require("../controllers/matriculaController");
+import * as matriculaController from "../controllers/matriculaController.js";
 
 router.get("/", matriculaController.getMatriculas);
 router.post("/", matriculaController.createMatricula);
 
-module.exports = router;
+export default router;

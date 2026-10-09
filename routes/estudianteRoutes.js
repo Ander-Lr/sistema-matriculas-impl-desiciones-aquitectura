@@ -1,8 +1,8 @@
-const express = require("express");
+import express from "express";
 const router = express.Router();
-const estudianteController = require("../controllers/estudianteController");
+import * as estudianteController from "../controllers/estudianteController.js";
 
 router.get("/", estudianteController.getEstudiantes);
 router.post("/", estudianteController.createEstudiante);
 
-module.exports = router;
+export default router;

@@ -1,10 +1,10 @@
-const reporteService = require("../services/reporteService");
+import * as reporteService from "../services/reporteService.js";
 
-const getReporte = (req, res) => {
-  const reporte = reporteService.getReporte();
+const getReporte = async (req, res) => {
+  const reporte = await reporteService.getReporte();
   res.json(reporte);
 };
 
-module.exports = {
+export { 
   getReporte
-};
+ };

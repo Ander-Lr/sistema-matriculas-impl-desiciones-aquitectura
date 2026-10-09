@@ -1,22 +1,21 @@
-let estudiantes = [
-  {
-    id: 1,
-    nombre: "Ana Torres",
-    carrera: "Ingeniería de Software",
-    semestre: 8
-  },
-  {
-    id: 2,
-    nombre: "Luis Pérez",
-    carrera: "Ingeniería de Software",
-    semestre: 8
-  },
-  {
-    id: 3,
-    nombre: "María Gómez",
-    carrera: "Tecnologías de la Información",
-    semestre: 6
-  }
-];
+import pool from '../backend/db/pool.js';
 
-module.exports = { estudiantes };
+const getAllEstudiantes = async () => {
+  const result = await pool.query('SELECT * FROM estudiantes');
+  return result.rows;
+};
+
+const getEstudianteById = async (id) => {
+  const result = await pool.query('SELECT * FROM estudiantes WHERE id = $1', [id]);
+  return result.rows[0];
+};
+
+const insertEstudiante = async (nombre, carrera, semestre) => {
+  const result = await pool.query(
+    'INSERT INTO estudiantes (nombre, carrera, semestre) VALUES ($1, $2, $3) RETURNING *',
+    [nombre, carrera, semestre]
+  );
+  return result.rows[0];
+};
+
+export { getAllEstudiantes, getEstudianteById, insertEstudiante };

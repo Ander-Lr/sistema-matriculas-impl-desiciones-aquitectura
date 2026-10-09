@@ -1,14 +1,14 @@
-const express = require("express");
+import express from "express";
 const router = express.Router();
 
-const estudianteRoutes = require("./estudianteRoutes");
-const cursoRoutes = require("./cursoRoutes");
-const matriculaRoutes = require("./matriculaRoutes");
-const reporteRoutes = require("./reporteRoutes");
+import estudianteRoutes from "./estudianteRoutes.js";
+import cursoRoutes from "./cursoRoutes.js";
+import matriculaRoutes from "./matriculaRoutes.js";
+import reporteRoutes from "./reporteRoutes.js";
 
 router.use("/estudiantes", estudianteRoutes);
 router.use("/cursos", cursoRoutes);
 router.use("/matriculas", matriculaRoutes);
 router.use("/reporte", reporteRoutes);
 
-module.exports = router;
+export default router;

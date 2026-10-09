@@ -1,20 +1,20 @@
-const cursoService = require("../services/cursoService");
+import * as cursoService from "../services/cursoService.js";
 
-const getCursos = (req, res) => {
-  const cursos = cursoService.getCursos();
+const getCursos = async (req, res) => {
+  const cursos = await cursoService.getCursos();
   res.json(cursos);
 };
 
-const createCurso = (req, res) => {
+const createCurso = async (req, res) => {
   try {
-    const curso = cursoService.createCurso(req.body);
+    const curso = await cursoService.createCurso(req.body);
     res.status(201).json(curso);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 };
 
-module.exports = {
+export { 
   getCursos,
   createCurso
-};
+ };

@@ -1,22 +1,30 @@
-let cursos = [
-  {
-    id: 1,
-    nombre: "Arquitectura de Software",
-    docente: "Ing. Carlos Ruiz",
-    cupos: 30
-  },
-  {
-    id: 2,
-    nombre: "Bases de Datos",
-    docente: "Ing. Laura Vera",
-    cupos: 25
-  },
-  {
-    id: 3,
-    nombre: "Desarrollo Web",
-    docente: "Ing. Pedro León",
-    cupos: 35
-  }
-];
+import pool from '../backend/db/pool.js';
 
-module.exports = { cursos };
+const getAllCursos = async () => {
+  const result = await pool.query('SELECT * FROM cursos');
+  return result.rows;
+};
+
+const getCursoById = async (id, client = pool) => {
+  const result = await client.query('SELECT * FROM cursos WHERE id = $1', [id]);
+  return result.rows[0];
+};
+
+const getCursoForUpdate = async (id, client) => {
+  const result = await client.query('SELECT * FROM cursos WHERE id = $1 FOR UPDATE', [id]);
+  return result.rows[0];
+};
+
+const decrementCupos = async (id, client) => {
+  await client.query('UPDATE cursos SET cupos = cupos - 1 WHERE id = $1', [id]);
+};
+
+const insertCurso = async (nombre, docente, cupos) => {
+  const result = await pool.query(
+    'INSERT INTO cursos (nombre, docente, cupos) VALUES ($1, $2, $3) RETURNING *',
+    [nombre, docente, cupos]
+  );
+  return result.rows[0];
+};
+
+export { getAllCursos, getCursoById, getCursoForUpdate, decrementCupos, insertCurso };

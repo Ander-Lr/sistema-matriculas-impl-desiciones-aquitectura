@@ -1,41 +1,60 @@
-const { matriculas } = require("../models/matriculaModel");
-const { estudiantes } = require("../models/estudianteModel");
-const { cursos } = require("../models/cursoModel");
+import { getAllMatriculasDetalladas, checkMatriculaExists, insertMatricula } from "../models/matriculaModel.js";
+import { getEstudianteById } from "../models/estudianteModel.js";
+import { getCursoForUpdate, decrementCupos } from "../models/cursoModel.js";
+import pool from "../backend/db/pool.js";
 
-const getMatriculas = () => {
-  return matriculas.map(m => {
-    const estudiante = estudiantes.find(e => e.id === m.estudianteId);
-    const curso = cursos.find(c => c.id === m.cursoId);
-    return {
-      id: m.id,
-      estudiante: estudiante ? estudiante.nombre : "Desconocido",
-      curso: curso ? curso.nombre : "Desconocido"
-    };
-  });
+const getMatriculas = async () => {
+  return await getAllMatriculasDetalladas();
 };
-const createMatricula = (data) => {
+
+const createMatricula = async (data) => {
   const { estudianteId, cursoId } = data;
-  const estudiante = estudiantes.find(e => e.id === Number(estudianteId));
-  const curso = cursos.find(c => c.id === Number(cursoId));
-
-  if (!estudiante || !curso) {
-    throw new Error("Estudiante o curso no encontrado.");
+  
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Check si estudiante existe
+    const estudiante = await getEstudianteById(estudianteId, client);
+    if (!estudiante) {
+      throw new Error("Estudiante no encontrado.");
+    }
+    
+    // Bloquear curso para actualización (H04)
+    const curso = await getCursoForUpdate(cursoId, client);
+    if (!curso) {
+      throw new Error("Curso no encontrado.");
+    }
+    
+    if (curso.cupos <= 0) {
+      throw new Error("No hay cupos disponibles para este curso.");
+    }
+    
+    // Check si ya está matriculado
+    const yaMatriculado = await checkMatriculaExists(estudianteId, cursoId, client);
+    if (yaMatriculado) {
+      throw new Error("El estudiante ya está matriculado en el curso.");
+    }
+    
+    // Registrar matrícula
+    const nuevaMatricula = await insertMatricula(estudianteId, cursoId, client);
+    
+    // Reducir cupo
+    await decrementCupos(cursoId, client);
+    
+    await client.query('COMMIT');
+    
+    return nuevaMatricula;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
-  if (matriculas.some(m => m.estudianteId === estudiante.id && m.cursoId === curso.id)) {
-    throw new Error("El estudiante ya está matriculado en el curso.");
-  }
-
-  const nuevaMatricula = {
-    id: matriculas.length
-      ? Math.max(...matriculas.map(m => m.id)) + 1
-      : 1,
-    estudianteId: estudiante.id,
-    cursoId: curso.id
-  };
-  matriculas.push(nuevaMatricula);
-  return nuevaMatricula;
 };
-module.exports = {
+
+export {
   getMatriculas,
   createMatricula
 };
