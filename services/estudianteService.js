@@ -1,7 +1,10 @@
 import { getAllEstudiantes, insertEstudiante } from "../models/estudianteModel.js";
 
-const getEstudiantes = async () => {
-  return await getAllEstudiantes();
+const getEstudiantes = async (query = {}) => {
+  const q = query.q || "";
+  const limit = parseInt(query.limit) || 10;
+  const offset = parseInt(query.offset) || 0;
+  return await getAllEstudiantes(q, limit, offset);
 };
 
 const createEstudiante = async (data) => {
@@ -9,7 +12,4 @@ const createEstudiante = async (data) => {
   return await insertEstudiante(nombre, carrera, semestre);
 };
 
-export {
-  getEstudiantes,
-  createEstudiante
-};
+export { getEstudiantes, createEstudiante };

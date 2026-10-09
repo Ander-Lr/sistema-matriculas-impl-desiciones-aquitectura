@@ -1,20 +1,21 @@
 import * as cursoService from "../services/cursoService.js";
 
-const getCursos = async (req, res) => {
-  const cursos = await cursoService.getCursos();
-  res.json(cursos);
-};
-
-const createCurso = async (req, res) => {
+const getCursos = async (req, res, next) => {
   try {
-    const curso = await cursoService.createCurso(req.body);
-    res.status(201).json(curso);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+    const cursos = await cursoService.getCursos(req.query);
+    res.json(cursos);
+  } catch (err) {
+    next(err);
   }
 };
 
-export { 
-  getCursos,
-  createCurso
- };
+const createCurso = async (req, res, next) => {
+  try {
+    const curso = await cursoService.createCurso(req.body);
+    res.status(201).location(`/api/v1/cursos/${curso.id}`).json(curso);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export { getCursos, createCurso };

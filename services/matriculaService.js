@@ -3,9 +3,14 @@ import { getEstudianteById } from "../models/estudianteModel.js";
 import { getCursoForUpdate, decrementCupos } from "../models/cursoModel.js";
 import pool from "../backend/db/pool.js";
 
-const getMatriculas = async () => {
-  return await getAllMatriculasDetalladas();
-};
+const getMatriculas = async (query = {}) => {
+  const q = query.q || "";
+  const limit = parseInt(query.limit) || 10;
+  const offset = parseInt(query.offset) || 0;
+  return await getAllMatriculasDetalladas(q, limit, offset);
+}; //
+  
+
 
 const createMatricula = async (data) => {
   const { estudianteId, cursoId } = data;

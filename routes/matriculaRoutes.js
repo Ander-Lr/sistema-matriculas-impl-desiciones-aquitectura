@@ -1,8 +1,11 @@
 import express from "express";
-const router = express.Router();
 import * as matriculaController from "../controllers/matriculaController.js";
+import { validateMatricula } from "../validators/matriculaValidator.js";
+import { autenticar, permitir, exigirMfa } from "../middlewares/auth.js";
 
-router.get("/", matriculaController.getMatriculas);
-router.post("/", matriculaController.createMatricula);
+const router = express.Router();
+
+router.get("/", autenticar, permitir("administrativo", "estudiante"), matriculaController.getMatriculas);
+router.post("/", autenticar, permitir("administrativo", "estudiante"), exigirMfa, validateMatricula, matriculaController.createMatricula);
 
 export default router;

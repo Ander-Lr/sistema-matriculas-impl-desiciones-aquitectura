@@ -1,20 +1,21 @@
 import * as estudianteService from "../services/estudianteService.js";
 
-const getEstudiantes = async (req, res) => {
-  const estudiantes = await estudianteService.getEstudiantes();
-  res.json(estudiantes);
-};
-
-const createEstudiante = async (req, res) => {
+const getEstudiantes = async (req, res, next) => {
   try {
-    const estudiante = await estudianteService.createEstudiante(req.body);
-    res.status(201).json(estudiante);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+    const estudiantes = await estudianteService.getEstudiantes(req.query);
+    res.json(estudiantes);
+  } catch (err) {
+    next(err);
   }
 };
 
-export { 
-  getEstudiantes,
-  createEstudiante
- };
+const createEstudiante = async (req, res, next) => {
+  try {
+    const estudiante = await estudianteService.createEstudiante(req.body);
+    res.status(201).location(`/api/v1/estudiantes/${estudiante.id}`).json(estudiante);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export { getEstudiantes, createEstudiante };

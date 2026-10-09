@@ -1,7 +1,10 @@
 import { getAllCursos, insertCurso } from "../models/cursoModel.js";
 
-const getCursos = async () => {
-  return await getAllCursos();
+const getCursos = async (query = {}) => {
+  const q = query.q || "";
+  const limit = parseInt(query.limit) || 10;
+  const offset = parseInt(query.offset) || 0;
+  return await getAllCursos(q, limit, offset);
 };
 
 const createCurso = async (data) => {
@@ -9,7 +12,4 @@ const createCurso = async (data) => {
   return await insertCurso(nombre, docente, cupos);
 };
 
-export {
-  getCursos,
-  createCurso
-};
+export { getCursos, createCurso };

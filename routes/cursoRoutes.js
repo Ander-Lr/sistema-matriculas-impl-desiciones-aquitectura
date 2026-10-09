@@ -1,8 +1,11 @@
 import express from "express";
-const router = express.Router();
 import * as cursoController from "../controllers/cursoController.js";
+import { validateCurso } from "../validators/cursoValidator.js";
+import { autenticar, permitir, exigirMfa } from "../middlewares/auth.js";
 
-router.get("/", cursoController.getCursos);
-router.post("/", cursoController.createCurso);
+const router = express.Router();
+
+router.get("/", autenticar, permitir("administrativo", "estudiante"), cursoController.getCursos);
+router.post("/", autenticar, permitir("administrativo"), exigirMfa, validateCurso, cursoController.createCurso);
 
 export default router;

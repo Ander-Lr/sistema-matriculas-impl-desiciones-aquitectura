@@ -1,8 +1,11 @@
 import express from "express";
-const router = express.Router();
 import * as estudianteController from "../controllers/estudianteController.js";
+import { validateEstudiante } from "../validators/estudianteValidator.js";
+import { autenticar, permitir, exigirMfa } from "../middlewares/auth.js";
 
-router.get("/", estudianteController.getEstudiantes);
-router.post("/", estudianteController.createEstudiante);
+const router = express.Router();
+
+router.get("/", autenticar, permitir("administrativo", "estudiante"), estudianteController.getEstudiantes);
+router.post("/", autenticar, permitir("administrativo"), exigirMfa, validateEstudiante, estudianteController.createEstudiante);
 
 export default router;
