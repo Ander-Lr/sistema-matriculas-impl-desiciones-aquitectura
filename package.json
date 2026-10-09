@@ -1,16 +1,24 @@
 {
-  "name": "sistema-gestion-academica",
-  "version": "1.0.0",
+  "name": "espe-matricula-decisiones-arquitectura",
+  "version": "2.0.0",
+  "type": "module",
   "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+  "main": "backend/server.js",
+  "engines": {
+    "node": ">=24"
   },
-  "keywords": [],
-  "author": "",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env backend/server.js",
+    "dev": "node --watch --env-file-if-exists=.env backend/server.js",
+    "test": "node --env-file-if-exists=.env --test \"tests/*.test.js\"",
+    "db:reset": "node --env-file-if-exists=.env backend/db/init.js --seed"
+  },
   "license": "ISC",
   "dependencies": {
-    "express": "^5.2.1"
+    "bootstrap": "5.3.8",
+    "express": "5.2.1",
+    "helmet": "8.3.0",
+    "jose": "6.2.12",
+    "pg": "8.23.1"
   }
 }
