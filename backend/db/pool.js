@@ -1,13 +1,13 @@
 import pg from 'pg';
+import { config } from '../config/config.js';
 
 const { Pool } = pg;
 
+// Un solo pool para toda la aplicación (ADR-03). La cadena de conexión
+// viene de la configuración (H12), nunca escrita en el código.
 const pool = new Pool({
-  user: process.env.POSTGRES_USER || 'app_user',
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.POSTGRES_DB || 'app_db',
-  password: process.env.POSTGRES_PASSWORD || 'mysecretpassword',
-  port: process.env.DB_PORT || 5432,
+  connectionString: config.databaseUrl,
+  max: 10,
 });
 
 export default pool;
