@@ -1,9 +1,8 @@
-export const validateMatricula = (req, res, next) => {
-  const { estudianteId, cursoId } = req.body;
-  if (!estudianteId || !cursoId || isNaN(estudianteId) || isNaN(cursoId)) {
-    const error = new Error("ID de estudiante o curso inválidos");
-    error.status = 422;
-    return next(error);
-  }
-  next();
-};
+import { entero, middleware } from "./comun.js";
+
+export const validarMatricula = (body) => ({
+  estudianteId: entero(body.estudianteId, "estudianteId", 1, 2147483647),
+  cursoId: entero(body.cursoId, "cursoId", 1, 2147483647),
+});
+
+export const validateMatricula = middleware(validarMatricula);
