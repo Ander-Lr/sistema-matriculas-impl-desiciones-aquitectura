@@ -1,9 +1,8 @@
+import { leerPaginacion } from "../validators/comun.js";
 import { getAllEstudiantes, insertEstudiante } from "../models/estudianteModel.js";
 
 const getEstudiantes = async (query = {}) => {
-  const q = query.q || "";
-  const limit = parseInt(query.limit) || 10;
-  const offset = parseInt(query.offset) || 0;
+  const { q, limit, offset } = leerPaginacion(query);
   return await getAllEstudiantes(q, limit, offset);
 };
 
