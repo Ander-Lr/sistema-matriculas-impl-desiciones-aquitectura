@@ -11,7 +11,7 @@ const getMatriculas = async (req, res, next) => {
 
 const createMatricula = async (req, res, next) => {
   try {
-    const matricula = await matriculaService.createMatricula(req.body);
+    const matricula = await matriculaService.createMatricula(req.body, req.user);
     res.status(201).location(`/api/v1/matriculas/${matricula.id}`).json({ mensaje: "Matrícula registrada correctamente.", id: matricula.id });
   } catch (error) {
     next(error);
