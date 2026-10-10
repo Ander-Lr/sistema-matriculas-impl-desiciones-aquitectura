@@ -68,3 +68,10 @@ Sin token o token inválido → 401 · rol insuficiente → 403 · falta MFA →
 ## Despliegue
 
 Ver los comentarios de [`deploy/matricula.service`](deploy/matricula.service) y [`deploy/nginx.conf`](deploy/nginx.conf). Con `NODE_ENV=production` la aplicación no arranca si faltan `OIDC_ISSUER`, `OIDC_AUDIENCE` u `OIDC_JWKS_URI`.
+
+## Autores
+
+- Lara Chicaiza Anderson Lenin
+- Calapucha Ñacata Carlos Vicente
+
+Universidad de las Fuerzas Armadas ESPE, sede Santo Domingo · Arquitectura del Software · NRC 32828 · Docente: Ing. Kevin Chuquitarco.
