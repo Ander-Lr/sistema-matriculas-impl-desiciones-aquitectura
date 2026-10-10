@@ -1,65 +1,70 @@
-# Sistema de Matrícula Universitaria
+# Sistema de Matrícula Universitaria — versión refactorizada
 
-Aplicación didáctica desarrollada para la asignatura **Arquitectura de Software**.
+Aplicación de la asignatura **Arquitectura de Software**. Parte del sistema didáctico original (todo en `server.js` y `public/app.js`, datos en memoria) y aplica las decisiones de arquitectura documentadas en [`docs/adr/`](docs/adr).
 
-El propósito de esta aplicación es permitir que los estudiantes analicen un sistema funcional y, mediante la revisión de su código fuente, identifiquen diferentes **características de arquitectura**.
+**Arquitectura:** monolito Express con roles MVC · PostgreSQL 18 · API REST `/api/v1` · OAuth 2.0 + OpenID Connect con MFA escalonada y roles · frontend con módulos ES y Bootstrap 5.3.8 · Nginx + systemd.
 
----
+## Estructura
 
-# 1. Información de la práctica
+```
+backend/        app.js (arma Express), server.js (abre el puerto), config/, db/
+routes/         CONTROLADOR: URL + verbo + roles permitidos
+controllers/    CONTROLADOR: recibe la petición y responde HTTP
+services/       reglas de negocio (cupos, duplicados, transacción)
+models/         MODELO: el único lugar con SQL
+validators/     reglas de entrada y paginación
+middlewares/    autenticación, roles, MFA, manejador de errores
+errors/         errores de negocio → códigos HTTP
+frontend/       VISTA: index.html, css/, js/api.js, js/ui.js, js/main.js
+database/       schema.sql, seed.sql
+deploy/         nginx.conf, matricula.service, matricula.env.example
+docs/           ADRs y tabla de trazabilidad
+tests/          una o más pruebas por hallazgo (H01–H15)
+```
 
-**Asignatura:** Arquitectura de Software
+## Ejecutar en desarrollo
 
-**Tema:** 1.1.3 Características de arquitectura
+Requisitos: Node.js 24 y PostgreSQL 18.
 
-**Aplicación:** Sistema de Matrícula Universitaria
+```bash
+# 1. Base de datos (una sola vez, en psql como superusuario)
+CREATE USER matricula PASSWORD 'cambiar_clave';
+CREATE DATABASE matricula OWNER matricula;
+CREATE DATABASE matricula_test OWNER matricula;   -- la usan las pruebas
 
-**Tecnologías:** Node.js, Express, JavaScript, HTML5 y CSS3
+# 2. Proyecto
+npm ci
+cp .env.example .env        # en Windows: copy .env.example .env
+npm run db:reset            # crea las tablas y carga los datos de ejemplo
+npm start                   # http://127.0.0.1:3000
+```
 
-**Modalidad:** Práctica de análisis de código
+En la pantalla, use el panel de sesión de la barra superior: elija **Personal administrativo** o **Estudiante**, el ID y si la sesión tiene **MFA**. Ese panel llama a `/auth/dev-token`, que simula al proveedor de identidad y **solo existe fuera de producción**.
 
----
+## Pruebas
 
-# 2. Objetivo
+```bash
+npm test
+```
 
-Analizar una aplicación funcional de matrícula universitaria para identificar evidencias relacionadas con las siguientes características de arquitectura:
+Las pruebas usan `TEST_DATABASE_URL` o, si no está definida, la base de `DATABASE_URL` con el sufijo `_test` (por ejemplo `matricula_test`). **Borran y recrean las tablas** de esa base, por eso se niegan a correr si el nombre no termina en `_test`.
 
-- Modularidad
-- Cohesión
-- Acoplamiento
-- Mantenibilidad
-- Reutilización
-- Escalabilidad
+## API
 
-El estudiante deberá observar el funcionamiento de la aplicación, revisar el código fuente y justificar sus conclusiones mediante evidencias concretas.
+Todas las rutas requieren `Authorization: Bearer <token>`.
 
----
+| Método y ruta | Roles | MFA | Respuestas |
+| --- | --- | --- | --- |
+| `GET /api/v1/estudiantes?q=&limit=&offset=` | administrativo, estudiante | no | 200 |
+| `POST /api/v1/estudiantes` | administrativo | sí | 201, 422 |
+| `GET /api/v1/cursos?q=&limit=&offset=` | administrativo, estudiante | no | 200 |
+| `POST /api/v1/cursos` | administrativo | sí | 201, 422 |
+| `GET /api/v1/matriculas?q=&limit=&offset=` | administrativo, estudiante | no | 200 |
+| `POST /api/v1/matriculas` | administrativo; estudiante solo para sí mismo | sí | 201, 403, 404, 409, 422 |
+| `GET /api/v1/reporte?q=&limit=&offset=` | administrativo | no | 200 |
 
-# 3. ¿Qué se debe aprender?
+Sin token o token inválido → 401 · rol insuficiente → 403 · falta MFA → 401. `limit` máximo: 100.
 
-Al finalizar la práctica, el estudiante deberá ser capaz de:
+## Despliegue
 
-1. Identificar modularidad dentro de un sistema.
-2. Reconocer el nivel de cohesión de las funciones.
-3. Identificar dependencias entre diferentes partes del software.
-4. Analizar la mantenibilidad del código.
-5. Identificar elementos reutilizables.
-6. Reconocer limitaciones relacionadas con la escalabilidad.
-7. Sustentar una evaluación arquitectónica mediante evidencias del código.
-
----
-
-# 4. Descripción del sistema
-
-El **Sistema de Matrícula Universitaria** es una aplicación web sencilla que permite gestionar información académica básica.
-
-La aplicación permite:
-
-- Registrar estudiantes.
-- Buscar estudiantes.
-- Registrar cursos.
-- Buscar cursos.
-- Matricular estudiantes en cursos.
-- Consultar las matrículas.
-
-La aplicación utiliza datos almacenados temporalmente en memoria.
+Ver los comentarios de [`deploy/matricula.service`](deploy/matricula.service) y [`deploy/nginx.conf`](deploy/nginx.conf). Con `NODE_ENV=production` la aplicación no arranca si faltan `OIDC_ISSUER`, `OIDC_AUDIENCE` u `OIDC_JWKS_URI`.
