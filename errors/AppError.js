@@ -1,14 +1,14 @@
-// Errores de negocio con su código HTTP (H08). Los servicios lanzan estos
-// errores y el manejador central (middlewares/errorHandler.js) los traduce.
+// Business errors with their HTTP status code (H08). Services throw these
+// errors and the central handler (middlewares/errorHandler.js) translates them.
 export class AppError extends Error {
-  constructor(status, mensaje) {
-    super(mensaje);
+  constructor(status, message) {
+    super(message);
     this.status = status;
   }
 }
 
-export const noEncontrado = (mensaje) => new AppError(404, mensaje);
-export const conflicto = (mensaje) => new AppError(409, mensaje);
-export const invalido = (mensaje) => new AppError(422, mensaje);
-export const prohibido = (mensaje) => new AppError(403, mensaje);
-export const noAutenticado = (mensaje) => new AppError(401, mensaje);
+export const notFound = (message) => new AppError(404, message);
+export const conflict = (message) => new AppError(409, message);
+export const invalid = (message) => new AppError(422, message);
+export const forbidden = (message) => new AppError(403, message);
+export const unauthenticated = (message) => new AppError(401, message);

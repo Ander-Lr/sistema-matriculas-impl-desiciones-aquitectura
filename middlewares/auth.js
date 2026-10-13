@@ -1,12 +1,12 @@
 import { jwtVerify, createRemoteJWKSet } from "jose";
 import { config } from "../backend/config/config.js";
-import { noAutenticado, prohibido } from "../errors/AppError.js";
+import { unauthenticated, forbidden } from "../errors/AppError.js";
 
-// ADR-06: OAuth 2.0 + OpenID Connect con MFA escalonada y roles.
-// - Producción: el token lo firma el proveedor de identidad y se verifica con
-//   sus claves públicas (JWKS), comprobando emisor y audiencia.
-// - Desarrollo: el token lo firma /auth/dev-token con un secreto local.
-const verificar = config.auth.modo === "oidc"
+// ADR-06: OAuth 2.0 + OpenID Connect with step-up MFA and roles.
+// - Production: the token is signed by the identity provider and verified with
+//   its public keys (JWKS), checking issuer and audience.
+// - Development: the token is signed by /auth/dev-token with a local secret.
+const verify = config.auth.mode === "oidc"
   ? (() => {
       const jwks = createRemoteJWKSet(new URL(config.auth.oidc.jwksUri));
       return (token) => jwtVerify(token, jwks, {
@@ -15,36 +15,36 @@ const verificar = config.auth.modo === "oidc"
       });
     })()
   : (() => {
-      const secreto = new TextEncoder().encode(config.auth.devSecret);
-      return (token) => jwtVerify(token, secreto, { algorithms: ["HS256"] });
+      const secret = new TextEncoder().encode(config.auth.devSecret);
+      return (token) => jwtVerify(token, secret, { algorithms: ["HS256"] });
     })();
 
-export const autenticar = async (req, res, next) => {
-  const authHeader = req.headers.authorization ?? "";
-  if (!authHeader.startsWith("Bearer ")) {
-    return next(noAutenticado("Token no proporcionado."));
+export const authenticate = async (req, res, next) => {
+  const header = req.headers.authorization ?? "";
+  if (!header.startsWith("Bearer ")) {
+    return next(unauthenticated("Token not provided."));
   }
   try {
-    const { payload } = await verificar(authHeader.slice(7));
+    const { payload } = await verify(header.slice(7));
     req.user = payload;
     next();
   } catch {
-    next(noAutenticado("Token inválido o expirado."));
+    next(unauthenticated("Invalid or expired token."));
   }
 };
 
-export const permitir = (...roles) => (req, res, next) => {
-  if (!req.user || !roles.includes(req.user.rol)) {
-    return next(prohibido("Acceso denegado: rol insuficiente."));
+export const allow = (...roles) => (req, res, next) => {
+  if (!req.user || !roles.includes(req.user.role)) {
+    return next(forbidden("Access denied: insufficient role."));
   }
   next();
 };
 
-// MFA escalonada (step-up): las operaciones que modifican datos exigen que la
-// sesión se haya autenticado con un segundo factor. En OIDC esto llega en el
-// claim estándar "amr"; en desarrollo, en el claim "mfa".
-export const exigirMfa = (req, res, next) => {
+// Step-up MFA: operations that modify data require the session to have been
+// authenticated with a second factor. In OIDC this arrives in the standard
+// "amr" claim; in development, in the "mfa" claim.
+export const requireMfa = (req, res, next) => {
   const amr = Array.isArray(req.user?.amr) ? req.user.amr : [];
   if (req.user?.mfa === true || amr.includes("mfa")) return next();
-  next(noAutenticado("Se requiere autenticación multifactor (MFA)."));
+  next(unauthenticated("Multi-factor authentication (MFA) is required."));
 };

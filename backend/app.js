@@ -8,34 +8,34 @@ import authRoutes from "../routes/authRoutes.js";
 import apiRoutes from "../routes/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const raiz = path.resolve(__dirname, "..");
+const root = path.resolve(__dirname, "..");
 
 const app = express();
 
-// Detrás de Nginx (ADR-05): confiar en la cabecera X-Forwarded-For del proxy local.
-if (config.esProduccion) app.set("trust proxy", "loopback");
+// Behind Nginx (ADR-05): trust the X-Forwarded-For header from the local proxy.
+if (config.isProduction) app.set("trust proxy", "loopback");
 
-// Cabeceras de seguridad, incluida la Content-Security-Policy que solo permite
-// scripts del propio servidor (refuerza la defensa contra XSS, H05).
+// Security headers, including a Content-Security-Policy that only allows
+// scripts from this server (reinforces the XSS defense, H05).
 app.use(helmet());
 app.disable("x-powered-by");
 app.use(express.json({ limit: "100kb" }));
 
-// Bootstrap servido desde node_modules: sin CDN, sin depender de Internet y
-// compatible con la CSP de helmet (ADR-07).
-app.use("/vendor/bootstrap", express.static(path.join(raiz, "node_modules/bootstrap/dist")));
+// Bootstrap served from node_modules: no CDN, no Internet dependency and
+// compatible with helmet's CSP (ADR-07).
+app.use("/vendor/bootstrap", express.static(path.join(root, "node_modules/bootstrap/dist")));
 
-// Vista (MVC): archivos del frontend
-app.use(express.static(path.join(raiz, "frontend")));
+// View (MVC): frontend files
+app.use(express.static(path.join(root, "frontend")));
 
-// Simulador del proveedor de identidad: solo fuera de producción (ADR-06)
-if (config.auth.permitirDevToken) {
+// Identity provider simulator: only outside production (ADR-06)
+if (config.auth.allowDevToken) {
   app.use("/auth", authRoutes);
 }
 
-// API versionada (ADR-04)
+// Versioned API (ADR-04)
 app.use("/api/v1", apiRoutes);
-app.use("/api", (req, res) => res.status(404).json({ error: "Recurso no encontrado." }));
+app.use("/api", (req, res) => res.status(404).json({ error: "Resource not found." }));
 
 app.use(errorHandler);
 
