@@ -2,29 +2,29 @@ import express from "express";
 import { SignJWT } from "jose";
 import { config } from "../backend/config/config.js";
 
-// Simula al proveedor de identidad SOLO en desarrollo (ADR-06).
-// app.js ni siquiera monta este router cuando NODE_ENV=production.
+// Simulates the identity provider ONLY in development (ADR-06).
+// app.js does not even mount this router when NODE_ENV=production.
 const router = express.Router();
-const secreto = new TextEncoder().encode(config.auth.devSecret);
-const ROLES = ["estudiante", "administrativo"];
+const secret = new TextEncoder().encode(config.auth.devSecret);
+const ROLES = ["student", "staff"];
 
 router.post("/dev-token", async (req, res, next) => {
-  if (!config.auth.permitirDevToken) {
-    return res.status(404).json({ error: "No disponible." });
+  if (!config.auth.allowDevToken) {
+    return res.status(404).json({ error: "Not available." });
   }
 
-  const { rol = "estudiante", mfa = false, sub = "1", nombre } = req.body ?? {};
-  if (!ROLES.includes(rol)) {
-    return res.status(422).json({ error: `Rol inválido. Use: ${ROLES.join(", ")}` });
+  const { role = "student", mfa = false, sub = "1", name } = req.body ?? {};
+  if (!ROLES.includes(role)) {
+    return res.status(422).json({ error: `Invalid role. Use: ${ROLES.join(", ")}` });
   }
 
   try {
-    const token = await new SignJWT({ rol, mfa: mfa === true, nombre: nombre ?? `Usuario ${sub}` })
+    const token = await new SignJWT({ role, mfa: mfa === true, name: name ?? `User ${sub}` })
       .setProtectedHeader({ alg: "HS256" })
       .setSubject(String(sub))
       .setIssuedAt()
       .setExpirationTime("2h")
-      .sign(secreto);
+      .sign(secret);
 
     res.json({ token });
   } catch (error) {

@@ -1,14 +1,14 @@
 import express from "express";
+import studentRoutes from "./studentRoutes.js";
+import courseRoutes from "./courseRoutes.js";
+import enrollmentRoutes from "./enrollmentRoutes.js";
+import reportRoutes from "./reportRoutes.js";
+
 const router = express.Router();
 
-import estudianteRoutes from "./estudianteRoutes.js";
-import cursoRoutes from "./cursoRoutes.js";
-import matriculaRoutes from "./matriculaRoutes.js";
-import reporteRoutes from "./reporteRoutes.js";
-
-router.use("/estudiantes", estudianteRoutes);
-router.use("/cursos", cursoRoutes);
-router.use("/matriculas", matriculaRoutes);
-router.use("/reporte", reporteRoutes);
+router.use("/students", studentRoutes);
+router.use("/courses", courseRoutes);
+router.use("/enrollments", enrollmentRoutes);
+router.use("/report", reportRoutes);
 
 export default router;
