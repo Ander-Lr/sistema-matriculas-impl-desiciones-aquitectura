@@ -1,184 +1,177 @@
-// Pruebas de la API REST: validación, códigos HTTP, seguridad y búsqueda.
+// REST API tests: validation, HTTP status codes, security and search.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { iniciar, finalizar } from "./helpers.js";
+import { start, finish } from "./helpers.js";
 
 let ctx;
-let admin;       // administrativo con MFA
-let adminSinMfa; // administrativo sin MFA
-let estudiante;  // estudiante con id 3
+let staff;         // administrative staff with MFA
+let staffNoMfa;    // administrative staff without MFA
+let student;       // student with id 3
 
 before(async () => {
-  ctx = await iniciar();
-  admin = await ctx.token({ rol: "administrativo", mfa: true });
-  adminSinMfa = await ctx.token({ rol: "administrativo", mfa: false });
-  estudiante = await ctx.token({ rol: "estudiante", mfa: true, sub: "3" });
+  ctx = await start();
+  staff = await ctx.token({ role: "staff", mfa: true });
+  staffNoMfa = await ctx.token({ role: "staff", mfa: false });
+  student = await ctx.token({ role: "student", mfa: true, sub: "3" });
 });
-after(() => finalizar(ctx));
+after(() => finish(ctx));
 
-// ---------- H03 · validación de entrada ----------
-test("H03 · POST {} a estudiantes responde 422", async () => {
-  const r = await ctx.api("POST", "/api/v1/estudiantes", { cuerpo: {}, tokenUsado: admin });
+// ---------- H03 · input validation ----------
+test("H03 · POST {} to students returns 422", async () => {
+  const r = await ctx.api("POST", "/api/v1/students", { body: {}, withToken: staff });
   assert.equal(r.status, 422);
 });
 
-test("H03 · semestre 99 responde 422", async () => {
-  const r = await ctx.api("POST", "/api/v1/estudiantes", {
-    cuerpo: { nombre: "Ana", carrera: "Software", semestre: 99 }, tokenUsado: admin,
+test("H03 · semester 99 returns 422", async () => {
+  const r = await ctx.api("POST", "/api/v1/students", {
+    body: { name: "Ana", program: "Software", semester: 99 }, withToken: staff,
   });
   assert.equal(r.status, 422);
 });
 
-test("H03 · cupos −5 responde 422", async () => {
-  const r = await ctx.api("POST", "/api/v1/cursos", {
-    cuerpo: { nombre: "Redes", docente: "Ing. X", cupos: -5 }, tokenUsado: admin,
+test("H03 · seats −5 returns 422", async () => {
+  const r = await ctx.api("POST", "/api/v1/courses", {
+    body: { name: "Networks", instructor: "Eng. X", seats: -5 }, withToken: staff,
   });
   assert.equal(r.status, 422);
 });
 
-test("H03 · un registro válido responde 201 con cabecera Location", async () => {
-  const r = await ctx.api("POST", "/api/v1/cursos", {
-    cuerpo: { nombre: "  Redes  ", docente: "Ing. X", cupos: "20" }, tokenUsado: admin,
+test("H03 · a valid record returns 201 with a Location header", async () => {
+  const r = await ctx.api("POST", "/api/v1/courses", {
+    body: { name: "  Networks  ", instructor: "Eng. X", seats: "20" }, withToken: staff,
   });
   assert.equal(r.status, 201);
-  assert.equal(r.body.nombre, "Redes", "los textos se guardan sin espacios sobrantes");
-  assert.equal(r.body.cupos, 20);
-  assert.equal(r.headers.get("location"), `/api/v1/cursos/${r.body.id}`);
+  assert.equal(r.body.name, "Networks", "text is stored without extra spaces");
+  assert.equal(r.body.seats, 20);
+  assert.equal(r.headers.get("location"), `/api/v1/courses/${r.body.id}`);
 });
 
 // ---------- H05 · XSS ----------
-test("H05 · un nombre con HTML se guarda como texto literal y la respuesta lleva CSP", async () => {
-  const malicioso = "<img src=x onerror=alert(1)>";
-  const r = await ctx.api("POST", "/api/v1/estudiantes", {
-    cuerpo: { nombre: malicioso, carrera: "Software", semestre: 3 }, tokenUsado: admin,
+test("H05 · a name containing HTML is stored as literal text and the page sends a CSP", async () => {
+  const malicious = "<img src=x onerror=alert(1)>";
+  const r = await ctx.api("POST", "/api/v1/students", {
+    body: { name: malicious, program: "Software", semester: 3 }, withToken: staff,
   });
   assert.equal(r.status, 201);
-  assert.equal(r.body.nombre, malicioso);
+  assert.equal(r.body.name, malicious);
 
-  const pagina = await fetch(`${ctx.url}/`);
-  const csp = pagina.headers.get("content-security-policy");
+  const page = await fetch(`${ctx.url}/`);
+  const csp = page.headers.get("content-security-policy");
   assert.match(csp, /script-src 'self'/);
-  assert.match(csp, /script-src-attr 'none'/, "bloquea manejadores en línea como onerror=");
+  assert.match(csp, /script-src-attr 'none'/, "blocks inline handlers such as onerror=");
 });
 
-// ---------- H06 · identidad y rol ----------
-test("H06 · sin token la API responde 401", async () => {
-  const r = await ctx.api("GET", "/api/v1/cursos");
+// ---------- H06 · identity and role ----------
+test("H06 · without a token the API returns 401", async () => {
+  const r = await ctx.api("GET", "/api/v1/courses");
   assert.equal(r.status, 401);
 });
 
-test("H06 · un token falsificado responde 401", async () => {
-  const r = await ctx.api("GET", "/api/v1/cursos", { tokenUsado: "eyJhbGciOiJIUzI1NiJ9.e30.firma-falsa" });
+test("H06 · a forged token returns 401", async () => {
+  const r = await ctx.api("GET", "/api/v1/courses", { withToken: "eyJhbGciOiJIUzI1NiJ9.e30.fake-signature" });
   assert.equal(r.status, 401);
 });
 
-test("H06 · un estudiante que intenta crear un curso recibe 403", async () => {
-  const r = await ctx.api("POST", "/api/v1/cursos", {
-    cuerpo: { nombre: "Hack", docente: "X", cupos: 5 }, tokenUsado: estudiante,
+test("H06 · a student trying to create a course gets 403", async () => {
+  const r = await ctx.api("POST", "/api/v1/courses", {
+    body: { name: "Hack", instructor: "X", seats: 5 }, withToken: student,
   });
   assert.equal(r.status, 403);
 });
 
-test("H06 · un administrativo sin MFA no puede modificar datos (401)", async () => {
-  const r = await ctx.api("POST", "/api/v1/cursos", {
-    cuerpo: { nombre: "Redes", docente: "X", cupos: 5 }, tokenUsado: adminSinMfa,
+test("H06 · staff without MFA cannot modify data (401)", async () => {
+  const r = await ctx.api("POST", "/api/v1/courses", {
+    body: { name: "Networks", instructor: "X", seats: 5 }, withToken: staffNoMfa,
   });
   assert.equal(r.status, 401);
   assert.match(r.body.error, /MFA/);
 });
 
-test("H06 · un administrativo sin MFA sí puede consultar", async () => {
-  const r = await ctx.api("GET", "/api/v1/cursos", { tokenUsado: adminSinMfa });
+test("H06 · staff without MFA can still read data", async () => {
+  const r = await ctx.api("GET", "/api/v1/courses", { withToken: staffNoMfa });
   assert.equal(r.status, 200);
 });
 
-test("H06 · un estudiante no puede matricular a otro estudiante (403)", async () => {
-  const r = await ctx.api("POST", "/api/v1/matriculas", {
-    cuerpo: { estudianteId: 1, cursoId: 3 }, tokenUsado: estudiante,
+test("H06 · a student cannot enroll another student (403)", async () => {
+  const r = await ctx.api("POST", "/api/v1/enrollments", {
+    body: { studentId: 1, courseId: 3 }, withToken: student,
   });
   assert.equal(r.status, 403);
 });
 
-test("H06 · un estudiante no puede ver el reporte académico (403)", async () => {
-  const r = await ctx.api("GET", "/api/v1/reporte", { tokenUsado: estudiante });
+test("H06 · a student cannot see the academic report (403)", async () => {
+  const r = await ctx.api("GET", "/api/v1/report", { withToken: student });
   assert.equal(r.status, 403);
 });
 
-// ---------- H08 · códigos HTTP correctos ----------
-test("H08 · matricular a un estudiante inexistente responde 404", async () => {
-  const r = await ctx.api("POST", "/api/v1/matriculas", {
-    cuerpo: { estudianteId: 9999, cursoId: 1 }, tokenUsado: admin,
-  });
+// ---------- H08 · correct HTTP status codes ----------
+test("H08 · enrolling a non-existent student returns 404", async () => {
+  const r = await ctx.api("POST", "/api/v1/enrollments", { body: { studentId: 9999, courseId: 1 }, withToken: staff });
   assert.equal(r.status, 404);
 });
 
-test("H08 · matricular en un curso inexistente responde 404", async () => {
-  const r = await ctx.api("POST", "/api/v1/matriculas", {
-    cuerpo: { estudianteId: 1, cursoId: 9999 }, tokenUsado: admin,
-  });
+test("H08 · enrolling in a non-existent course returns 404", async () => {
+  const r = await ctx.api("POST", "/api/v1/enrollments", { body: { studentId: 1, courseId: 9999 }, withToken: staff });
   assert.equal(r.status, 404);
 });
 
-test("H08 · una matrícula duplicada responde 409", async () => {
-  // El seed ya matricula al estudiante 1 en el curso 1.
-  const r = await ctx.api("POST", "/api/v1/matriculas", {
-    cuerpo: { estudianteId: 1, cursoId: 1 }, tokenUsado: admin,
-  });
+test("H08 · a duplicate enrollment returns 409", async () => {
+  // The seed already enrolls student 1 in course 1.
+  const r = await ctx.api("POST", "/api/v1/enrollments", { body: { studentId: 1, courseId: 1 }, withToken: staff });
   assert.equal(r.status, 409);
 });
 
-test("H08 · crear devuelve el registro con su id y la cabecera Location", async () => {
-  const r = await ctx.api("POST", "/api/v1/estudiantes", {
-    cuerpo: { nombre: "Con id", carrera: "Software", semestre: 1 }, tokenUsado: admin,
+test("H08 · creating returns the record with its id and the Location header", async () => {
+  const r = await ctx.api("POST", "/api/v1/students", {
+    body: { name: "With id", program: "Software", semester: 1 }, withToken: staff,
   });
   assert.equal(r.status, 201);
   assert.ok(Number.isInteger(r.body.id));
-  assert.equal(r.headers.get("location"), `/api/v1/estudiantes/${r.body.id}`);
+  assert.equal(r.headers.get("location"), `/api/v1/students/${r.body.id}`);
 });
 
-test("H08 · la API está versionada: /api/v1 existe y la ruta antigua sin versión no", async () => {
-  const nueva = await ctx.api("GET", "/api/v1/estudiantes", { tokenUsado: admin });
-  const antigua = await ctx.api("GET", "/api/estudiantes", { tokenUsado: admin });
-  assert.equal(nueva.status, 200);
-  assert.equal(antigua.status, 404);
+test("H08 · the API is versioned: /api/v1 exists and the old unversioned route does not", async () => {
+  const current = await ctx.api("GET", "/api/v1/students", { withToken: staff });
+  const old = await ctx.api("GET", "/api/students", { withToken: staff });
+  assert.equal(current.status, 200);
+  assert.equal(old.status, 404);
 });
 
-// ---------- H07 · manejo de errores y entorno ----------
-test("H07 · un JSON mal formado responde 400 en JSON, sin traza ni rutas internas", async () => {
-  const r = await fetch(`${ctx.url}/api/v1/estudiantes`, {
+// ---------- H07 · error handling and environment ----------
+test("H07 · malformed JSON returns 400 as JSON, without stack trace or internal paths", async () => {
+  const r = await fetch(`${ctx.url}/api/v1/students`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${admin}` },
-    body: "{mal json",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${staff}` },
+    body: "{bad json",
   });
   assert.equal(r.status, 400);
   assert.match(r.headers.get("content-type"), /application\/json/);
-  const texto = await r.text();
-  assert.doesNotMatch(texto, /node_modules|at .*\(|SyntaxError/);
+  assert.doesNotMatch(await r.text(), /node_modules|at .*\(|SyntaxError/);
 });
 
-test("H07 · las respuestas no revelan la tecnología (sin X-Powered-By)", async () => {
+test("H07 · responses do not reveal the technology (no X-Powered-By)", async () => {
   const r = await fetch(`${ctx.url}/`);
   assert.equal(r.headers.get("x-powered-by"), null);
 });
 
-test("H07 · una ruta de API inexistente responde 404 en JSON", async () => {
-  const r = await ctx.api("GET", "/api/v1/no-existe", { tokenUsado: admin });
+test("H07 · a non-existent API route returns 404 as JSON", async () => {
+  const r = await ctx.api("GET", "/api/v1/does-not-exist", { withToken: staff });
   assert.equal(r.status, 404);
   assert.ok(r.body.error);
 });
 
-// ---------- H14 · API versionada, búsqueda y paginación ----------
-test("H14 · ?q= filtra por nombre", async () => {
-  const r = await ctx.api("GET", "/api/v1/estudiantes?q=gómez", { tokenUsado: admin });
+// ---------- H14 · search and pagination ----------
+test("H14 · ?q= filters by name", async () => {
+  const r = await ctx.api("GET", "/api/v1/students?q=gómez", { withToken: staff });
   assert.equal(r.status, 200);
   assert.ok(r.body.length >= 1);
-  assert.ok(r.body.every((e) => e.nombre.toLowerCase().includes("gómez")));
+  assert.ok(r.body.every((s) => s.name.toLowerCase().includes("gómez")));
 });
 
-test("H14 · limit y offset paginan los resultados", async () => {
-  const pagina1 = await ctx.api("GET", "/api/v1/cursos?limit=1&offset=0", { tokenUsado: admin });
-  const pagina2 = await ctx.api("GET", "/api/v1/cursos?limit=1&offset=1", { tokenUsado: admin });
-  assert.equal(pagina1.body.length, 1);
-  assert.equal(pagina2.body.length, 1);
-  assert.notEqual(pagina1.body[0].id, pagina2.body[0].id);
+test("H14 · limit and offset paginate the results", async () => {
+  const page1 = await ctx.api("GET", "/api/v1/courses?limit=1&offset=0", { withToken: staff });
+  const page2 = await ctx.api("GET", "/api/v1/courses?limit=1&offset=1", { withToken: staff });
+  assert.equal(page1.body.length, 1);
+  assert.equal(page2.body.length, 1);
+  assert.notEqual(page1.body[0].id, page2.body[0].id);
 });
