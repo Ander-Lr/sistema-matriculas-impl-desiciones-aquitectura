@@ -1,5 +1,5 @@
-/* Estilos propios: solo lo que Bootstrap no cubre. */
-/* Bootstrap usa display:flex !important en .d-flex; así el atributo hidden siempre gana. */
+/* Custom styles: only what Bootstrap does not cover. */
+/* Bootstrap uses display:flex !important in .d-flex; this makes the hidden attribute always win. */
 [hidden] {
   display: none !important;
 }
@@ -8,31 +8,31 @@ body {
   background: #f4f6f8;
 }
 
-.sesion-id {
+.session-id {
   width: 5.5rem;
 }
 
-.tabla-scroll {
+.table-scroll {
   max-height: 320px;
   overflow-y: auto;
 }
 
-.tabla-scroll thead th {
+.table-scroll thead th {
   position: sticky;
   top: 0;
   background: var(--bs-body-bg);
 }
 
-.mensaje:empty {
+.message:empty {
   display: none;
 }
 
-.mensaje {
+.message {
   margin-bottom: .5rem;
 }
 
-/* Secciones bloqueadas mientras no hay sesión */
-.sin-sesion section {
+/* Sections locked while there is no session */
+.signed-out section {
   opacity: .55;
   pointer-events: none;
 }

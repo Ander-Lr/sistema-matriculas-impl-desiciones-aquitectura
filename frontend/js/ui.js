@@ -1,89 +1,89 @@
-// ui.js — todo lo que pinta en pantalla (Vista).
-// Regla de seguridad (H05): los datos que vienen del servidor se insertan
-// SIEMPRE con textContent. En este archivo no existe innerHTML, así que un
-// nombre como <img src=x onerror=alert(1)> se muestra como texto y no se ejecuta.
+// ui.js — everything that is drawn on screen (View).
+// Security rule (H05): data coming from the server is ALWAYS inserted with
+// textContent. This file never uses innerHTML, so a name such as
+// <img src=x onerror=alert(1)> is displayed as text and never executed.
 
-// Crea un elemento con atributos y contenido de texto seguro.
-export function el(etiqueta, { texto, clase, atributos = {} } = {}, hijos = []) {
-  const nodo = document.createElement(etiqueta);
-  if (clase) nodo.className = clase;
-  if (texto !== undefined && texto !== null) nodo.textContent = String(texto);
-  for (const [nombre, valor] of Object.entries(atributos)) nodo.setAttribute(nombre, valor);
-  for (const hijo of hijos) nodo.append(hijo);
-  return nodo;
+// Creates an element with attributes and safe text content.
+export function el(tag, { text, className, attributes = {} } = {}, children = []) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined && text !== null) node.textContent = String(text);
+  for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
+  for (const child of children) node.append(child);
+  return node;
 }
 
-// Rellena un <tbody> con una fila por registro. "columnas" son las claves a mostrar.
-export function pintarTabla(tbody, registros, columnas, textoVacio = "Sin registros.") {
-  if (!registros.length) {
-    const celda = el("td", { texto: textoVacio, clase: "text-body-secondary", atributos: { colspan: String(columnas.length) } });
-    tbody.replaceChildren(el("tr", {}, [celda]));
+// Fills a <tbody> with one row per record. "columns" are the keys to display.
+export function renderTable(tbody, records, columns, emptyText = "No records.") {
+  if (!records.length) {
+    const cell = el("td", { text: emptyText, className: "text-body-secondary", attributes: { colspan: String(columns.length) } });
+    tbody.replaceChildren(el("tr", {}, [cell]));
     return;
   }
-  const filas = registros.map((registro) =>
-    el("tr", {}, columnas.map((columna) => el("td", { texto: registro[columna] })))
+  const rows = records.map((record) =>
+    el("tr", {}, columns.map((column) => el("td", { text: record[column] })))
   );
-  tbody.replaceChildren(...filas);
+  tbody.replaceChildren(...rows);
 }
 
-export function llenarSelect(select, registros, { valor = "id", etiqueta = "nombre", vacio = "Seleccione…" } = {}) {
-  const anterior = select.value;
-  const opciones = registros.map((r) => el("option", { texto: `${r[valor]} · ${r[etiqueta]}`, atributos: { value: String(r[valor]) } }));
-  select.replaceChildren(el("option", { texto: vacio, atributos: { value: "" } }), ...opciones);
-  if (registros.some((r) => String(r[valor]) === anterior)) select.value = anterior;
+export function fillSelect(select, records, { value = "id", label = "name", placeholder = "Select…" } = {}) {
+  const previous = select.value;
+  const options = records.map((r) => el("option", { text: `${r[value]} · ${r[label]}`, attributes: { value: String(r[value]) } }));
+  select.replaceChildren(el("option", { text: placeholder, attributes: { value: "" } }), ...options);
+  if (records.some((r) => String(r[value]) === previous)) select.value = previous;
 }
 
-// Muestra un mensaje tipo alerta de Bootstrap: "success", "danger", "warning", "info".
-export function mostrarMensaje(contenedor, texto, tipo = "info") {
-  if (!texto) {
-    contenedor.replaceChildren();
+// Shows a Bootstrap alert message: "success", "danger", "warning", "info".
+export function showMessage(container, text, type = "info") {
+  if (!text) {
+    container.replaceChildren();
     return;
   }
-  contenedor.replaceChildren(el("div", { texto, clase: `alert alert-${tipo} py-2 mb-0`, atributos: { role: "alert" } }));
+  container.replaceChildren(el("div", { text, className: `alert alert-${type} py-2 mb-0`, attributes: { role: "alert" } }));
 }
 
-export function pintarReporte(contenedor, filas) {
-  if (!filas.length) {
-    contenedor.replaceChildren(el("p", { texto: "No hay estudiantes para mostrar.", clase: "text-body-secondary" }));
+export function renderReport(container, rows) {
+  if (!rows.length) {
+    container.replaceChildren(el("p", { text: "No students to display.", className: "text-body-secondary" }));
     return;
   }
-  const items = filas.map((fila) =>
-    el("div", { clase: "list-group-item" }, [
-      el("strong", { texto: fila.estudiante }),
-      el("span", { texto: ` — ${fila.carrera}`, clase: "text-body-secondary" }),
-      el("div", { texto: `Cursos: ${fila.cursos.length ? fila.cursos.join(", ") : "Ninguno"}`, clase: "small" }),
+  const items = rows.map((row) =>
+    el("div", { className: "list-group-item" }, [
+      el("strong", { text: row.student }),
+      el("span", { text: ` — ${row.program}`, className: "text-body-secondary" }),
+      el("div", { text: `Courses: ${row.courses.length ? row.courses.join(", ") : "None"}`, className: "small" }),
     ])
   );
-  contenedor.replaceChildren(...items);
+  container.replaceChildren(...items);
 }
 
-const NOMBRE_ROL = { administrativo: "Personal administrativo", estudiante: "Estudiante" };
+const ROLE_NAMES = { staff: "Administrative staff", student: "Student" };
 
-// Ajusta la interfaz según la sesión: muestra quién está conectado y oculta
-// los controles que su rol no puede usar. Es solo comodidad visual: el
-// servidor vuelve a comprobar los permisos en cada petición (ADR-06).
-export function pintarSesion(datos) {
-  const conectado = Boolean(datos);
-  document.querySelector("#formSesion").hidden = conectado;
-  document.querySelector("#sesionActiva").hidden = !conectado;
-  document.querySelector("#avisoSesion").hidden = conectado;
-  document.querySelector("main").classList.toggle("sin-sesion", !conectado);
+// Adapts the interface to the session: shows who is signed in and hides the
+// controls their role cannot use. This is only a visual convenience: the
+// server checks the permissions again on every request (ADR-06).
+export function renderSession(claims) {
+  const signedIn = Boolean(claims);
+  document.querySelector("#signInForm").hidden = signedIn;
+  document.querySelector("#activeSession").hidden = !signedIn;
+  document.querySelector("#sessionNotice").hidden = signedIn;
+  document.querySelector("main").classList.toggle("signed-out", !signedIn);
 
-  document.querySelector("#sesionTexto").textContent = conectado
-    ? `${NOMBRE_ROL[datos.rol] ?? datos.rol} · ID ${datos.sub}${datos.mfa ? " · MFA ✓" : " · sin MFA"}`
+  document.querySelector("#sessionText").textContent = signedIn
+    ? `${ROLE_NAMES[claims.role] ?? claims.role} · ID ${claims.sub}${claims.mfa ? " · MFA ✓" : " · no MFA"}`
     : "";
 
-  for (const elemento of document.querySelectorAll("[data-rol]")) {
-    elemento.hidden = conectado && datos.rol !== elemento.dataset.rol;
+  for (const element of document.querySelectorAll("[data-role]")) {
+    element.hidden = signedIn && claims.role !== element.dataset.role;
   }
 }
 
-export function limpiarTodo() {
-  for (const id of ["#tablaEstudiantes", "#tablaCursos", "#tablaMatriculas", "#reporte", "#estudianteSelect", "#cursoSelect"]) {
+export function clearAll() {
+  for (const id of ["#studentsTable", "#coursesTable", "#enrollmentsTable", "#report", "#studentSelect", "#courseSelect"]) {
     document.querySelector(id).replaceChildren();
   }
-  for (const id of ["#msgEstudiante", "#msgCurso", "#mensaje", "#msgReporte"]) {
+  for (const id of ["#studentMessage", "#courseMessage", "#enrollmentMessage", "#reportMessage"]) {
     document.querySelector(id).replaceChildren();
   }
-  for (const buscador of document.querySelectorAll('input[type="search"]')) buscador.value = "";
+  for (const search of document.querySelectorAll('input[type="search"]')) search.value = "";
 }

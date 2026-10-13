@@ -1,176 +1,176 @@
-// main.js — eventos: conecta los formularios y botones con api.js y ui.js.
-import { sesion, estudiantes, cursos, matriculas, reporte } from "./api.js";
-import { pintarTabla, llenarSelect, mostrarMensaje, pintarReporte, pintarSesion, limpiarTodo } from "./ui.js";
+// main.js — events: connects the forms and buttons with api.js and ui.js.
+import { session, students, courses, enrollments, report } from "./api.js";
+import { renderTable, fillSelect, showMessage, renderReport, renderSession, clearAll } from "./ui.js";
 
 const $ = (selector) => document.querySelector(selector);
 
-// Texto de los buscadores (?q=)
-const filtros = { estudiantes: "", cursos: "", matriculas: "" };
+// Search box text (?q=)
+const filters = { students: "", courses: "", enrollments: "" };
 
-// Muestra el error en el contenedor indicado y, si la sesión expiró, vuelve al inicio.
-function manejarError(contenedor, error) {
-  mostrarMensaje(contenedor, error.message, error.status >= 500 || error.status === 0 ? "danger" : "warning");
-  if (error.status === 401 && !sesion.actual()) {
-    pintarSesion(null);
-    limpiarTodo();
+// Shows the error in the given container and, if the session expired, returns to the start.
+function handleError(container, error) {
+  showMessage(container, error.message, error.status >= 500 || error.status === 0 ? "danger" : "warning");
+  if (error.status === 401 && !session.current()) {
+    renderSession(null);
+    clearAll();
   }
 }
 
-// ---------- Carga de datos ----------
-async function cargarEstudiantes() {
+// ---------- Data loading ----------
+async function loadStudents() {
   try {
-    const lista = await estudiantes.listar({ q: filtros.estudiantes });
-    pintarTabla($("#tablaEstudiantes"), lista, ["id", "nombre", "carrera", "semestre"]);
+    const list = await students.list({ q: filters.students });
+    renderTable($("#studentsTable"), list, ["id", "name", "program", "semester"]);
   } catch (error) {
-    manejarError($("#msgEstudiante"), error);
+    handleError($("#studentMessage"), error);
   }
 }
 
-async function cargarCursos() {
+async function loadCourses() {
   try {
-    const lista = await cursos.listar({ q: filtros.cursos });
-    pintarTabla($("#tablaCursos"), lista, ["id", "nombre", "docente", "cupos"]);
+    const list = await courses.list({ q: filters.courses });
+    renderTable($("#coursesTable"), list, ["id", "name", "instructor", "seats"]);
   } catch (error) {
-    manejarError($("#msgCurso"), error);
+    handleError($("#courseMessage"), error);
   }
 }
 
-async function cargarMatriculas() {
+async function loadEnrollments() {
   try {
-    const lista = await matriculas.listar({ q: filtros.matriculas });
-    pintarTabla($("#tablaMatriculas"), lista, ["id", "estudiante", "curso"]);
+    const list = await enrollments.list({ q: filters.enrollments });
+    renderTable($("#enrollmentsTable"), list, ["id", "student", "course"]);
   } catch (error) {
-    manejarError($("#mensaje"), error);
+    handleError($("#enrollmentMessage"), error);
   }
 }
 
-// Los <select> de matrícula usan listas completas (sin filtro de búsqueda).
-async function cargarSelects() {
+// The enrollment <select> elements use the full lists (no search filter).
+async function loadSelects() {
   try {
-    const [listaEstudiantes, listaCursos] = await Promise.all([estudiantes.listar(), cursos.listar()]);
-    const usuario = sesion.actual();
-    // Un estudiante solo puede matricularse a sí mismo: se le muestra solo su registro.
-    const visibles = usuario?.rol === "estudiante"
-      ? listaEstudiantes.filter((e) => String(e.id) === String(usuario.sub))
-      : listaEstudiantes;
-    llenarSelect($("#estudianteSelect"), visibles, { vacio: "Estudiante…" });
-    llenarSelect($("#cursoSelect"), listaCursos.map((c) => ({ ...c, nombre: `${c.nombre} (${c.cupos} cupos)` })), { vacio: "Curso…" });
+    const [studentList, courseList] = await Promise.all([students.list(), courses.list()]);
+    const user = session.current();
+    // A student can only enroll themselves: only their own record is shown.
+    const visible = user?.role === "student"
+      ? studentList.filter((s) => String(s.id) === String(user.sub))
+      : studentList;
+    fillSelect($("#studentSelect"), visible, { placeholder: "Student…" });
+    fillSelect($("#courseSelect"), courseList.map((c) => ({ ...c, name: `${c.name} (${c.seats} seats)` })), { placeholder: "Course…" });
   } catch (error) {
-    manejarError($("#mensaje"), error);
+    handleError($("#enrollmentMessage"), error);
   }
 }
 
-function cargarTodo() {
-  return Promise.all([cargarEstudiantes(), cargarCursos(), cargarMatriculas(), cargarSelects()]);
+function loadAll() {
+  return Promise.all([loadStudents(), loadCourses(), loadEnrollments(), loadSelects()]);
 }
 
-// ---------- Formularios ----------
-// Envía un formulario, muestra el resultado y recarga lo necesario.
-function alEnviar(formulario, contenedor, accion, mensajeExito, recargar) {
-  formulario.addEventListener("submit", async (evento) => {
-    evento.preventDefault();
-    const boton = formulario.querySelector("button");
-    boton.disabled = true;
+// ---------- Forms ----------
+// Submits a form, shows the result and reloads what is needed.
+function onSubmit(form, container, action, successMessage, reload) {
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = form.querySelector("button");
+    button.disabled = true;
     try {
-      const resultado = await accion();
-      mostrarMensaje(contenedor, typeof mensajeExito === "function" ? mensajeExito(resultado) : mensajeExito, "success");
-      formulario.reset();
-      await recargar();
+      const result = await action();
+      showMessage(container, typeof successMessage === "function" ? successMessage(result) : successMessage, "success");
+      form.reset();
+      await reload();
     } catch (error) {
-      manejarError(contenedor, error);
+      handleError(container, error);
     } finally {
-      boton.disabled = false;
+      button.disabled = false;
     }
   });
 }
 
-alEnviar(
-  $("#formEstudiante"),
-  $("#msgEstudiante"),
-  () => estudiantes.crear({
-    nombre: $("#nombre").value,
-    carrera: $("#carrera").value,
-    semestre: Number($("#semestre").value),
+onSubmit(
+  $("#studentForm"),
+  $("#studentMessage"),
+  () => students.create({
+    name: $("#studentName").value,
+    program: $("#studentProgram").value,
+    semester: Number($("#studentSemester").value),
   }),
-  (e) => `Estudiante registrado con ID ${e.id}.`,
-  () => Promise.all([cargarEstudiantes(), cargarSelects()])
+  (s) => `Student registered with ID ${s.id}.`,
+  () => Promise.all([loadStudents(), loadSelects()])
 );
 
-alEnviar(
-  $("#formCurso"),
-  $("#msgCurso"),
-  () => cursos.crear({
-    nombre: $("#curso").value,
-    docente: $("#docente").value,
-    cupos: Number($("#cupos").value),
+onSubmit(
+  $("#courseForm"),
+  $("#courseMessage"),
+  () => courses.create({
+    name: $("#courseName").value,
+    instructor: $("#courseInstructor").value,
+    seats: Number($("#courseSeats").value),
   }),
-  (c) => `Curso registrado con ID ${c.id}.`,
-  () => Promise.all([cargarCursos(), cargarSelects()])
+  (c) => `Course registered with ID ${c.id}.`,
+  () => Promise.all([loadCourses(), loadSelects()])
 );
 
-alEnviar(
-  $("#formMatricula"),
-  $("#mensaje"),
-  () => matriculas.crear({
-    estudianteId: Number($("#estudianteSelect").value),
-    cursoId: Number($("#cursoSelect").value),
+onSubmit(
+  $("#enrollmentForm"),
+  $("#enrollmentMessage"),
+  () => enrollments.create({
+    studentId: Number($("#studentSelect").value),
+    courseId: Number($("#courseSelect").value),
   }),
-  (r) => r.mensaje,
-  () => Promise.all([cargarMatriculas(), cargarCursos(), cargarSelects()])
+  (r) => r.message,
+  () => Promise.all([loadEnrollments(), loadCourses(), loadSelects()])
 );
 
-// ---------- Reporte ----------
-$("#btnReporte").addEventListener("click", async () => {
-  mostrarMensaje($("#msgReporte"), "");
+// ---------- Report ----------
+$("#reportButton").addEventListener("click", async () => {
+  showMessage($("#reportMessage"), "");
   try {
-    pintarReporte($("#reporte"), await reporte.obtener());
+    renderReport($("#report"), await report.get());
   } catch (error) {
-    manejarError($("#msgReporte"), error);
+    handleError($("#reportMessage"), error);
   }
 });
 
-// ---------- Buscadores ----------
-// Esperan 300 ms después de la última tecla para no enviar una petición por letra.
-function buscador(input, clave, cargar) {
-  let espera;
+// ---------- Search boxes ----------
+// Wait 300 ms after the last keystroke so a request is not sent for every letter.
+function searchBox(input, key, load) {
+  let timer;
   input.addEventListener("input", () => {
-    clearTimeout(espera);
-    espera = setTimeout(() => {
-      filtros[clave] = input.value.trim();
-      cargar();
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      filters[key] = input.value.trim();
+      load();
     }, 300);
   });
 }
 
-buscador($("#buscarEstudiante"), "estudiantes", cargarEstudiantes);
-buscador($("#buscarCurso"), "cursos", cargarCursos);
-buscador($("#buscarMatricula"), "matriculas", cargarMatriculas);
+searchBox($("#studentSearch"), "students", loadStudents);
+searchBox($("#courseSearch"), "courses", loadCourses);
+searchBox($("#enrollmentSearch"), "enrollments", loadEnrollments);
 
-// ---------- Sesión ----------
-$("#formSesion").addEventListener("submit", async (evento) => {
-  evento.preventDefault();
+// ---------- Session ----------
+$("#signInForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
   try {
-    const datos = await sesion.iniciarDesarrollo({
-      rol: $("#sesionRol").value,
-      sub: $("#sesionSub").value || "1",
-      mfa: $("#sesionMfa").checked,
+    const claims = await session.signInDev({
+      role: $("#sessionRole").value,
+      sub: $("#sessionSub").value || "1",
+      mfa: $("#sessionMfa").checked,
     });
-    pintarSesion(datos);
-    await cargarTodo();
+    renderSession(claims);
+    await loadAll();
   } catch (error) {
-    $("#avisoSesion").textContent = `No se pudo iniciar sesión: ${error.message}`;
+    $("#sessionNotice").textContent = `Could not sign in: ${error.message}`;
   }
 });
 
-$("#btnCerrarSesion").addEventListener("click", () => {
-  sesion.cerrar();
-  pintarSesion(null);
-  limpiarTodo();
-  Object.keys(filtros).forEach((clave) => { filtros[clave] = ""; });
-  $("#avisoSesion").textContent = "Inicie sesión para consultar y registrar información.";
+$("#signOutButton").addEventListener("click", () => {
+  session.signOut();
+  renderSession(null);
+  clearAll();
+  Object.keys(filters).forEach((key) => { filters[key] = ""; });
+  $("#sessionNotice").textContent = "Sign in to view and register information.";
 });
 
-// ---------- Inicio ----------
-const usuarioInicial = sesion.actual();
-pintarSesion(usuarioInicial);
-if (usuarioInicial) cargarTodo();
+// ---------- Startup ----------
+const initialUser = session.current();
+renderSession(initialUser);
+if (initialUser) loadAll();

@@ -1,127 +1,127 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistema de Gestión Académica</title>
-  <!-- Bootstrap servido localmente desde node_modules (ADR-07): sin CDN -->
+  <title>University Enrollment System</title>
+  <!-- Bootstrap served locally from node_modules (ADR-07): no CDN -->
   <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
   <link rel="stylesheet" href="/css/styles.css">
-  <!-- Módulos ES: main.js importa api.js y ui.js (H13) -->
+  <!-- ES modules: main.js imports api.js and ui.js (H13) -->
   <script type="module" src="/js/main.js"></script>
 </head>
 <body>
   <nav class="navbar navbar-dark bg-dark">
     <div class="container flex-wrap gap-2">
-      <span class="navbar-brand mb-0 h1">Sistema de Gestión Académica</span>
+      <span class="navbar-brand mb-0 h1">University Enrollment System</span>
 
-      <!-- Panel de sesión (ADR-06). En desarrollo pide el token a /auth/dev-token;
-           en producción este formulario se sustituye por el inicio de sesión del
-           proveedor de identidad. -->
-      <form id="formSesion" class="d-flex flex-wrap align-items-center gap-2" aria-label="Iniciar sesión">
-        <select id="sesionRol" class="form-select form-select-sm w-auto" aria-label="Rol">
-          <option value="administrativo">Personal administrativo</option>
-          <option value="estudiante">Estudiante</option>
+      <!-- Session panel (ADR-06). In development it requests the token from
+           /auth/dev-token; in production this form is replaced by the identity
+           provider's sign-in page. -->
+      <form id="signInForm" class="d-flex flex-wrap align-items-center gap-2" aria-label="Sign in">
+        <select id="sessionRole" class="form-select form-select-sm w-auto" aria-label="Role">
+          <option value="staff">Administrative staff</option>
+          <option value="student">Student</option>
         </select>
-        <input id="sesionSub" class="form-control form-control-sm sesion-id" type="number" min="1" value="1"
-               aria-label="ID de usuario" title="ID del usuario (para un estudiante, su ID de estudiante)">
+        <input id="sessionSub" class="form-control form-control-sm session-id" type="number" min="1" value="1"
+               aria-label="User ID" title="User ID (for a student, their student ID)">
         <div class="form-check form-switch text-light mb-0">
-          <input id="sesionMfa" class="form-check-input" type="checkbox" checked>
-          <label class="form-check-label small" for="sesionMfa">MFA</label>
+          <input id="sessionMfa" class="form-check-input" type="checkbox" checked>
+          <label class="form-check-label small" for="sessionMfa">MFA</label>
         </div>
-        <button class="btn btn-sm btn-primary">Iniciar sesión</button>
+        <button class="btn btn-sm btn-primary">Sign in</button>
       </form>
 
-      <div id="sesionActiva" class="d-flex align-items-center gap-2 text-light" hidden>
-        <span id="sesionTexto" class="small"></span>
-        <button id="btnCerrarSesion" type="button" class="btn btn-sm btn-outline-light">Cerrar sesión</button>
+      <div id="activeSession" class="d-flex align-items-center gap-2 text-light" hidden>
+        <span id="sessionText" class="small"></span>
+        <button id="signOutButton" type="button" class="btn btn-sm btn-outline-light">Sign out</button>
       </div>
     </div>
   </nav>
 
   <main class="container my-4">
-    <div id="avisoSesion" class="alert alert-info">
-      Inicie sesión para consultar y registrar información.
+    <div id="sessionNotice" class="alert alert-info">
+      Sign in to view and register information.
     </div>
 
     <div class="row g-4">
-      <!-- ESTUDIANTES -->
+      <!-- STUDENTS -->
       <section class="col-lg-6">
         <div class="card shadow-sm h-100">
           <div class="card-body">
-            <h2 class="h5 card-title">Estudiantes</h2>
-            <form id="formEstudiante" class="row g-2 mb-2" data-rol="administrativo">
-              <div class="col-sm-5"><input id="nombre" class="form-control" placeholder="Nombre" maxlength="120" required></div>
-              <div class="col-sm-4"><input id="carrera" class="form-control" placeholder="Carrera" maxlength="120" required></div>
-              <div class="col-sm-3"><input id="semestre" class="form-control" type="number" min="1" max="12" placeholder="Semestre" required></div>
-              <div class="col-12"><button class="btn btn-primary btn-sm">Agregar estudiante</button></div>
+            <h2 class="h5 card-title">Students</h2>
+            <form id="studentForm" class="row g-2 mb-2" data-role="staff">
+              <div class="col-sm-5"><input id="studentName" class="form-control" placeholder="Name" maxlength="120" required></div>
+              <div class="col-sm-4"><input id="studentProgram" class="form-control" placeholder="Program" maxlength="120" required></div>
+              <div class="col-sm-3"><input id="studentSemester" class="form-control" type="number" min="1" max="12" placeholder="Semester" required></div>
+              <div class="col-12"><button class="btn btn-primary btn-sm">Add student</button></div>
             </form>
-            <div id="msgEstudiante" class="mensaje" role="status"></div>
-            <input id="buscarEstudiante" class="form-control form-control-sm mb-2" type="search" placeholder="Buscar estudiante por nombre…">
-            <div class="table-responsive tabla-scroll">
+            <div id="studentMessage" class="message" role="status"></div>
+            <input id="studentSearch" class="form-control form-control-sm mb-2" type="search" placeholder="Search students by name…">
+            <div class="table-responsive table-scroll">
               <table class="table table-sm table-hover align-middle">
-                <thead><tr><th>ID</th><th>Nombre</th><th>Carrera</th><th>Semestre</th></tr></thead>
-                <tbody id="tablaEstudiantes"></tbody>
+                <thead><tr><th>ID</th><th>Name</th><th>Program</th><th>Semester</th></tr></thead>
+                <tbody id="studentsTable"></tbody>
               </table>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- CURSOS -->
+      <!-- COURSES -->
       <section class="col-lg-6">
         <div class="card shadow-sm h-100">
           <div class="card-body">
-            <h2 class="h5 card-title">Cursos</h2>
-            <form id="formCurso" class="row g-2 mb-2" data-rol="administrativo">
-              <div class="col-sm-5"><input id="curso" class="form-control" placeholder="Curso" maxlength="120" required></div>
-              <div class="col-sm-4"><input id="docente" class="form-control" placeholder="Docente" maxlength="120" required></div>
-              <div class="col-sm-3"><input id="cupos" class="form-control" type="number" min="1" max="500" placeholder="Cupos" required></div>
-              <div class="col-12"><button class="btn btn-primary btn-sm">Agregar curso</button></div>
+            <h2 class="h5 card-title">Courses</h2>
+            <form id="courseForm" class="row g-2 mb-2" data-role="staff">
+              <div class="col-sm-5"><input id="courseName" class="form-control" placeholder="Course" maxlength="120" required></div>
+              <div class="col-sm-4"><input id="courseInstructor" class="form-control" placeholder="Instructor" maxlength="120" required></div>
+              <div class="col-sm-3"><input id="courseSeats" class="form-control" type="number" min="1" max="500" placeholder="Seats" required></div>
+              <div class="col-12"><button class="btn btn-primary btn-sm">Add course</button></div>
             </form>
-            <div id="msgCurso" class="mensaje" role="status"></div>
-            <input id="buscarCurso" class="form-control form-control-sm mb-2" type="search" placeholder="Buscar curso por nombre…">
-            <div class="table-responsive tabla-scroll">
+            <div id="courseMessage" class="message" role="status"></div>
+            <input id="courseSearch" class="form-control form-control-sm mb-2" type="search" placeholder="Search courses by name…">
+            <div class="table-responsive table-scroll">
               <table class="table table-sm table-hover align-middle">
-                <thead><tr><th>ID</th><th>Curso</th><th>Docente</th><th>Cupos</th></tr></thead>
-                <tbody id="tablaCursos"></tbody>
+                <thead><tr><th>ID</th><th>Course</th><th>Instructor</th><th>Seats</th></tr></thead>
+                <tbody id="coursesTable"></tbody>
               </table>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- MATRÍCULAS -->
+      <!-- ENROLLMENTS -->
       <section class="col-lg-6">
         <div class="card shadow-sm h-100">
           <div class="card-body">
-            <h2 class="h5 card-title">Matrículas</h2>
-            <form id="formMatricula" class="row g-2 mb-2">
-              <div class="col-sm-6"><select id="estudianteSelect" class="form-select" aria-label="Estudiante" required></select></div>
-              <div class="col-sm-6"><select id="cursoSelect" class="form-select" aria-label="Curso" required></select></div>
-              <div class="col-12"><button class="btn btn-primary btn-sm">Matricular</button></div>
+            <h2 class="h5 card-title">Enrollments</h2>
+            <form id="enrollmentForm" class="row g-2 mb-2">
+              <div class="col-sm-6"><select id="studentSelect" class="form-select" aria-label="Student" required></select></div>
+              <div class="col-sm-6"><select id="courseSelect" class="form-select" aria-label="Course" required></select></div>
+              <div class="col-12"><button class="btn btn-primary btn-sm">Enroll</button></div>
             </form>
-            <div id="mensaje" class="mensaje" role="status"></div>
-            <input id="buscarMatricula" class="form-control form-control-sm mb-2" type="search" placeholder="Buscar por estudiante o curso…">
-            <div class="table-responsive tabla-scroll">
+            <div id="enrollmentMessage" class="message" role="status"></div>
+            <input id="enrollmentSearch" class="form-control form-control-sm mb-2" type="search" placeholder="Search by student or course…">
+            <div class="table-responsive table-scroll">
               <table class="table table-sm table-hover align-middle">
-                <thead><tr><th>ID</th><th>Estudiante</th><th>Curso</th></tr></thead>
-                <tbody id="tablaMatriculas"></tbody>
+                <thead><tr><th>ID</th><th>Student</th><th>Course</th></tr></thead>
+                <tbody id="enrollmentsTable"></tbody>
               </table>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- REPORTE -->
+      <!-- REPORT -->
       <section class="col-lg-6">
         <div class="card shadow-sm h-100">
           <div class="card-body">
-            <h2 class="h5 card-title">Reporte académico</h2>
-            <p class="text-body-secondary small mb-2">Disponible para el personal administrativo.</p>
-            <button id="btnReporte" class="btn btn-outline-primary btn-sm mb-3" data-rol="administrativo">Generar reporte</button>
-            <div id="msgReporte" class="mensaje" role="status"></div>
-            <div id="reporte" class="list-group"></div>
+            <h2 class="h5 card-title">Academic report</h2>
+            <p class="text-body-secondary small mb-2">Available to administrative staff.</p>
+            <button id="reportButton" class="btn btn-outline-primary btn-sm mb-3" data-role="staff">Generate report</button>
+            <div id="reportMessage" class="message" role="status"></div>
+            <div id="report" class="list-group"></div>
           </div>
         </div>
       </section>
@@ -129,7 +129,7 @@
   </main>
 
   <footer class="text-center text-body-secondary small py-4">
-    Práctica de Arquitectura de Software — Sistema de Matrícula Universitaria
+    Software Architecture — University Enrollment System
   </footer>
 </body>
 </html>

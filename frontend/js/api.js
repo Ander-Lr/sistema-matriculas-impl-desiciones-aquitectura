@@ -1,128 +1,128 @@
-// api.js — única puerta hacia el servidor (H13).
-// Ningún otro archivo llama a fetch. Aquí se centraliza:
-//  - la URL base de la API versionada (/api/v1),
-//  - el token de sesión en la cabecera Authorization,
-//  - la revisión de response.ok y la conversión de errores.
+// api.js — the single gateway to the server (H13).
+// No other file calls fetch. This module centralizes:
+//  - the base URL of the versioned API (/api/v1),
+//  - the session token in the Authorization header,
+//  - the response.ok check and error conversion.
 
 const BASE = "/api/v1";
-const CLAVE_TOKEN = "matricula.token";
+const TOKEN_KEY = "enrollment.token";
 
 export class ApiError extends Error {
-  constructor(status, mensaje) {
-    super(mensaje);
+  constructor(status, message) {
+    super(message);
     this.status = status;
   }
 }
 
-// ---------- Sesión ----------
-// sessionStorage puede fallar (modo privado, almacenamiento bloqueado):
-// por eso cada acceso va en try/catch y además se guarda una copia en memoria.
-let tokenEnMemoria = null;
+// ---------- Session ----------
+// sessionStorage can fail (private mode, blocked storage), so every access is
+// wrapped in try/catch and a copy is also kept in memory.
+let tokenInMemory = null;
 
-function leerToken() {
+function readToken() {
   try {
-    return sessionStorage.getItem(CLAVE_TOKEN) ?? tokenEnMemoria;
+    return sessionStorage.getItem(TOKEN_KEY) ?? tokenInMemory;
   } catch {
-    return tokenEnMemoria;
+    return tokenInMemory;
   }
 }
 
-function guardarToken(token) {
-  tokenEnMemoria = token;
+function saveToken(token) {
+  tokenInMemory = token;
   try {
-    if (token) sessionStorage.setItem(CLAVE_TOKEN, token);
-    else sessionStorage.removeItem(CLAVE_TOKEN);
+    if (token) sessionStorage.setItem(TOKEN_KEY, token);
+    else sessionStorage.removeItem(TOKEN_KEY);
   } catch {
-    /* sin almacenamiento: queda solo en memoria */
+    /* no storage: kept in memory only */
   }
 }
 
-// Lee los datos visibles del token (rol, sub, mfa). Solo sirve para mostrar
-// la interfaz; quien decide los permisos es siempre el servidor.
-function datosDelToken(token) {
+// Reads the visible token claims (role, sub, mfa). Only used to adapt the
+// interface; the server always makes the permission decisions.
+function tokenClaims(token) {
   try {
     const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
     const json = new TextDecoder().decode(Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)));
-    const datos = JSON.parse(json);
-    if (datos.exp && datos.exp * 1000 < Date.now()) return null;
-    return datos;
+    const claims = JSON.parse(json);
+    if (claims.exp && claims.exp * 1000 < Date.now()) return null;
+    return claims;
   } catch {
     return null;
   }
 }
 
-export const sesion = {
-  actual() {
-    const token = leerToken();
-    const datos = token ? datosDelToken(token) : null;
-    if (token && !datos) guardarToken(null); // token vencido o corrupto
-    return datos;
+export const session = {
+  current() {
+    const token = readToken();
+    const claims = token ? tokenClaims(token) : null;
+    if (token && !claims) saveToken(null); // expired or corrupted token
+    return claims;
   },
 
-  // Solo desarrollo: simula al proveedor de identidad (ADR-06).
-  async iniciarDesarrollo({ rol, sub, mfa }) {
-    const { token } = await peticion("POST", "/auth/dev-token", { rol, sub, mfa }, { base: "" });
-    guardarToken(token);
-    return datosDelToken(token);
+  // Development only: simulates the identity provider (ADR-06).
+  async signInDev({ role, sub, mfa }) {
+    const { token } = await request("POST", "/auth/dev-token", { role, sub, mfa }, { base: "" });
+    saveToken(token);
+    return tokenClaims(token);
   },
 
-  cerrar() {
-    guardarToken(null);
+  signOut() {
+    saveToken(null);
   },
 };
 
-// ---------- Petición genérica ----------
-async function peticion(metodo, ruta, cuerpo, { base = BASE } = {}) {
-  const cabeceras = { Accept: "application/json" };
-  const token = leerToken();
-  if (token) cabeceras.Authorization = `Bearer ${token}`;
-  if (cuerpo !== undefined) cabeceras["Content-Type"] = "application/json";
+// ---------- Generic request ----------
+async function request(method, path, body, { base = BASE } = {}) {
+  const headers = { Accept: "application/json" };
+  const token = readToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (body !== undefined) headers["Content-Type"] = "application/json";
 
-  let respuesta;
+  let response;
   try {
-    respuesta = await fetch(base + ruta, {
-      method: metodo,
-      headers: cabeceras,
-      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+    response = await fetch(base + path, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError(0, "No se pudo conectar con el servidor.");
+    throw new ApiError(0, "Could not connect to the server.");
   }
 
-  const datos = await respuesta.json().catch(() => null);
+  const data = await response.json().catch(() => null);
 
-  if (!respuesta.ok) {
-    if (respuesta.status === 401 && base === BASE) {
-      // La sesión ya no es válida; la interfaz lo detecta con sesion.actual().
-      if (!datos?.error?.includes("MFA")) guardarToken(null);
+  if (!response.ok) {
+    if (response.status === 401 && base === BASE) {
+      // The session is no longer valid; the interface detects it with session.current().
+      if (!data?.error?.includes("MFA")) saveToken(null);
     }
-    throw new ApiError(respuesta.status, datos?.error ?? `Error ${respuesta.status}`);
+    throw new ApiError(response.status, data?.error ?? `Error ${response.status}`);
   }
-  return datos;
+  return data;
 }
 
-const conBusqueda = (ruta, { q = "", limit = 100 } = {}) => {
+const withSearch = (path, { q = "", limit = 100 } = {}) => {
   const params = new URLSearchParams({ limit: String(limit) });
   if (q) params.set("q", q);
-  return `${ruta}?${params}`;
+  return `${path}?${params}`;
 };
 
-// ---------- Recursos ----------
-export const estudiantes = {
-  listar: (opciones) => peticion("GET", conBusqueda("/estudiantes", opciones)),
-  crear: (datos) => peticion("POST", "/estudiantes", datos),
+// ---------- Resources ----------
+export const students = {
+  list: (options) => request("GET", withSearch("/students", options)),
+  create: (data) => request("POST", "/students", data),
 };
 
-export const cursos = {
-  listar: (opciones) => peticion("GET", conBusqueda("/cursos", opciones)),
-  crear: (datos) => peticion("POST", "/cursos", datos),
+export const courses = {
+  list: (options) => request("GET", withSearch("/courses", options)),
+  create: (data) => request("POST", "/courses", data),
 };
 
-export const matriculas = {
-  listar: (opciones) => peticion("GET", conBusqueda("/matriculas", opciones)),
-  crear: (datos) => peticion("POST", "/matriculas", datos),
+export const enrollments = {
+  list: (options) => request("GET", withSearch("/enrollments", options)),
+  create: (data) => request("POST", "/enrollments", data),
 };
 
-export const reporte = {
-  obtener: (opciones) => peticion("GET", conBusqueda("/reporte", opciones)),
+export const report = {
+  get: (options) => request("GET", withSearch("/report", options)),
 };
