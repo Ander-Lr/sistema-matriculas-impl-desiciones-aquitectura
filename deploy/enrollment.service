@@ -1,0 +1,38 @@
+# systemd service for the enrollment system (ADR-05).
+# Installation:
+#   sudo useradd --system --home /opt/enrollment-system --shell /usr/sbin/nologin enrollment
+#   sudo cp -r . /opt/enrollment-system && cd /opt/enrollment-system && sudo npm ci --omit=dev
+#   sudo mkdir -p /etc/enrollment && sudo cp deploy/enrollment.env.example /etc/enrollment/enrollment.env
+#   sudo chmod 600 /etc/enrollment/enrollment.env   # contains the database password
+#   sudo cp deploy/enrollment.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now enrollment
+#   journalctl -u enrollment -f                       # view the logs
+
+[Unit]
+Description=University Enrollment System (Express)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=enrollment
+Group=enrollment
+WorkingDirectory=/opt/enrollment-system
+EnvironmentFile=/etc/enrollment/enrollment.env
+ExecStart=/usr/bin/node backend/server.js
+Restart=on-failure
+RestartSec=5
+
+# Hardening: the process cannot write to the system or escalate privileges.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target
