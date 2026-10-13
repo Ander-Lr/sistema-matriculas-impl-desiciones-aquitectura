@@ -1,8 +1,8 @@
 {
-  "name": "espe-matricula-decisiones-arquitectura",
+  "name": "espe-enrollment-architecture-decisions",
   "version": "2.0.0",
   "type": "module",
-  "description": "Sistema de Matrícula Universitaria: monolito Express con roles MVC, PostgreSQL y OIDC",
+  "description": "University Enrollment System: Express monolith with MVC roles, PostgreSQL and OIDC",
   "main": "backend/server.js",
   "engines": {
     "node": ">=24"
